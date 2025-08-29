@@ -46,8 +46,8 @@ public:
     int get_id() const; // 修改为接受 type 参数
 };
 
-// 定义 Light_params 结构体
-struct Light_params {
+// 定义 Params 结构体
+struct Params {
     int light_area_min;
     double light_h_w_ratio;
     int light_angle_min;
@@ -73,7 +73,7 @@ public:
     int color;
     int display_mode;
     
-    Light_params light_params;
+    Params params;
 
     cv::Point2f dst_armor_pts[4] = {
         cv::Point2f(0, 0),
@@ -83,7 +83,7 @@ public:
     };
     // 134mm x 58 (125)
 
-    ArmorDetector(int detect_color, int display_mode, int binary_val, const Light_params& light_params);
+    ArmorDetector(int detect_color, int display_mode, int binary_val, const Params& params);
     void set_classifier(std::shared_ptr<NumberClassifier> cls){
         classifier_ = std::move(cls);
     }

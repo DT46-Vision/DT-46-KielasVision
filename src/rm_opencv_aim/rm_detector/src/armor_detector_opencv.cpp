@@ -72,43 +72,43 @@ int Armor::get_id() const {
 }
 
 // ArmorDetector 类的实现
-ArmorDetector::ArmorDetector(int detect_color, int display_mode, int binary_val, const Light_params& light_params)
-    : binary_val(binary_val), color(detect_color), display_mode(display_mode), light_params(light_params) {}
+ArmorDetector::ArmorDetector(int detect_color, int display_mode, int binary_val, const Params& params)
+    : binary_val(binary_val), color(detect_color), display_mode(display_mode), params(params) {}
 
 void ArmorDetector::update_light_area_min(int new_light_area_min) {
-    light_params.light_area_min = new_light_area_min;
+    params.light_area_min = new_light_area_min;
 }
 
 void ArmorDetector::update_light_h_w_ratio(double new_light_h_w_ratio) {
-    light_params.light_h_w_ratio = new_light_h_w_ratio;
+    params.light_h_w_ratio = new_light_h_w_ratio;
 }
 
 void ArmorDetector::update_light_angle_min(int new_light_angle_min) {
-    light_params.light_angle_min = new_light_angle_min;
+    params.light_angle_min = new_light_angle_min;
 }
 
 void ArmorDetector::update_light_angle_max(int new_light_angle_max) {
-    light_params.light_angle_max = new_light_angle_max;
+    params.light_angle_max = new_light_angle_max;
 }
 
 void ArmorDetector::update_light_red_ratio(float new_light_red_ratio) {
-    light_params.light_red_ratio = new_light_red_ratio;
+    params.light_red_ratio = new_light_red_ratio;
 }
 
 void ArmorDetector::update_light_blue_ratio(float new_light_blue_ratio) {
-    light_params.light_blue_ratio = new_light_blue_ratio;
+    params.light_blue_ratio = new_light_blue_ratio;
 }
 
 void ArmorDetector::update_height_rate_tol(float new_height_rate_tol) {
-    light_params.height_rate_tol = new_height_rate_tol;
+    params.height_rate_tol = new_height_rate_tol;
 }
 
 void ArmorDetector::update_height_multiplier_min(float new_height_multiplier_min) {
-    light_params.height_multiplier_min = new_height_multiplier_min;
+    params.height_multiplier_min = new_height_multiplier_min;
 }
 
 void ArmorDetector::update_height_multiplier_max(float new_height_multiplier_max) {
-    light_params.height_multiplier_max = new_height_multiplier_max;
+    params.height_multiplier_max = new_height_multiplier_max;
 }
 
 void ArmorDetector::update_binary_val(int new_binary_val) {
@@ -143,15 +143,15 @@ std::vector<Light> ArmorDetector::find_lights(const cv::Mat& img_binary_input) {
     cv::findContours(img_binary_input, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
     for (const auto& contour : contours) {
-        if (cv::contourArea(contour) >= light_params.light_area_min) {
+        if (cv::contourArea(contour) >= params.light_area_min) {
             cv::RotatedRect min_rect = cv::minAreaRect(contour);
             cv::Size2f w_h = min_rect.size;
             double angle = min_rect.angle;
             std::tie(w_h, angle) = adjust(w_h, angle);
-            if (w_h.height / w_h.width < light_params.light_h_w_ratio) {
+            if (w_h.height / w_h.width < params.light_h_w_ratio) {
                 continue;
             }
-            if (angle >= light_params.light_angle_min && angle <= light_params.light_angle_max) {
+            if (angle >= params.light_angle_min && angle <= params.light_angle_max) {
                 cv::RotatedRect rect(min_rect.center, w_h, static_cast<float>(angle));
                 is_lights.push_back(rect);
             }
@@ -189,9 +189,9 @@ std::vector<Light> ArmorDetector::find_lights(const cv::Mat& img_binary_input) {
         int sum_b = cv::sum(roi)[0];
         int sum_r = cv::sum(roi)[2];
 
-        if ((color == 1 || color == 2) && sum_b > sum_r * light_params.light_blue_ratio) {
+        if ((color == 1 || color == 2) && sum_b > sum_r * params.light_blue_ratio) {
             lights_found.push_back(Light(up, down, rect.angle, 1));
-        } else if ((color == 0 || color == 2) && sum_r > sum_b * light_params.light_red_ratio) {
+        } else if ((color == 0 || color == 2) && sum_r > sum_b * params.light_red_ratio) {
             lights_found.push_back(Light(up, down, rect.angle, 0));
         }
     }
@@ -244,13 +244,13 @@ NumberClassifier::Result ArmorDetector::is_close(const Light& light1, const Ligh
     float height = std::max(light1.height, light2.height);
     float height_rate = height / std::min(light1.height, light2.height);
     // 如果高度比例不符合，直接返回
-    if (height_rate >= light_params.height_rate_tol) {
+    if (height_rate >= params.height_rate_tol) {
         return res;
     }
     double distance = calculate_distance({static_cast<float>(light1.cx), static_cast<float>(light1.cy)}, {static_cast<float>(light2.cx), static_cast<float>(light2.cy)});
 
-    if ((distance > height * light_params.height_multiplier_min && distance < height * light_params.height_multiplier_max)
-         || (distance > height * 1.56f * light_params.height_multiplier_min && distance < height * 1.76f * light_params.height_multiplier_max)
+    if ((distance > height * params.height_multiplier_min && distance < height * params.height_multiplier_max)
+         || (distance > height * 1.56f * params.height_multiplier_min && distance < height * 1.76f * params.height_multiplier_max)
         ) {
             res = get_armor_result(light1, light2);
     }

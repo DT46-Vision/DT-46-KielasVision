@@ -20,12 +20,15 @@ RoboMaster 装甲板图案分类器训练相关代码
 3. 改变装甲板姿态，若此时角点依然准确，录制该类别的 rosbag
 
     ```
-    ros2 bag record /detector/number_img -o <output_path>
+    ros2 bag record /detector/img_armor -o <output_path>
     ```
 
 4. 从 bag 中提取出图片作为数据集
 
     ```
+    # 数字1 bag1
+    # 数字3 bag2
+    # 哨兵  bag3
     python3 extract_bag_bin.py armor_bag1 datasets/1/
     ```
 
