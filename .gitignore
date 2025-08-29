@@ -4,6 +4,7 @@ devel/
 logs/
 build/
 install/
+.vscode/
 bin/
 msg_gen/
 srv_gen/
