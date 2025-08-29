@@ -1,0 +1,40 @@
+rm_tracker:
+  ros__parameters:
+    # ---------- 打印 / 调试 ----------
+    log_throttle_ms: 1000     # 日志输出节流(ms)，避免刷屏
+    fps_window_sec: 1.0       # FPS 统计窗口大小(秒)
+
+    # ---------- 追踪控制 ----------
+    use_kf: true              # 是否启用卡尔曼滤波 (IMM-3D)
+    frame_add: 60             # 目标丢失前保留的帧数
+    tracking_color: 0         # 跟踪颜色: 0=红, 1=蓝, 10=不追踪
+    follow_decision: 0        # 是否跟随决策模块 (0=否, 1=是)
+    track_deep_tol: 10      # 追踪深度容差 (mm)
+    shoot_yaw_max: 1.5        # 最大允许 yaw 角度 (deg)
+    shoot_pitch_max: 1.0      # 最大允许 pitch 角度 (deg)
+
+    # ---------- 相机外参 ----------
+    camera_tx_m: 0.0          # 相机平移 X (米)
+    camera_ty_m: 0.0          # 相机平移 Y (米)
+    camera_tz_m: -0.03        # 相机平移 Z (米)
+    camera_yaw_deg: 4.0       # 相机 yaw 角 (deg)
+    camera_pitch_deg: 0.0     # 相机 pitch 角 (deg)
+    camera_roll_deg: 0.0      # 相机 roll 角 (deg)
+
+    # ---------- IMM 滤波器参数 ----------
+    kf_sigma_acc: 2.0         # 加速度噪声标准差
+    kf_sigma_jerk: 20.0       # jerk(加加速度)噪声标准差
+    kf_meas_std: 0.01         # 测量噪声标准差
+    kf_mu_cv: 0.6             # 模型 CV(匀速) 权重
+    kf_mu_ca: 0.4             # 模型 CA(匀加速) 权重
+    kf_trans_00: 0.9          # CV->CV 转移概率
+    kf_trans_01: 0.1          # CV->CA 转移概率
+    kf_trans_10: 0.1          # CA->CV 转移概率
+    kf_trans_11: 0.9          # CA->CA 转移概率
+    kf_a_init_std: 3.0        # 初始加速度标准差
+
+    # ---------- 弹道参数 ----------
+    use_ballistics: true      # 是否启用弹道补偿
+    bullet_speed_mps: 30.0    # 弹速 (m/s)
+    gravity: 9.81             # 重力加速度 (m/s^2)
+    extra_latency_s: 0.02     # 额外延迟补偿 (秒)
