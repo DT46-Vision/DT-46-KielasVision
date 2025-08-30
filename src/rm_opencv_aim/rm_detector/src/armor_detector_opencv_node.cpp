@@ -53,7 +53,7 @@ public:
 
         // 其他参数
         this->declare_parameter<bool>("use_geometric_center", true);
-        this->declare_parameter<int>("max_processing_fps", 0);
+        this->declare_parameter<int>("print_period_ms", 1000); // ms
 
         // ---------------- 参数读取 ----------------
         std::string cls_model_file   = get_required_param<std::string>("cls_model_file");
@@ -82,7 +82,7 @@ public:
         display_mode_        = get_required_param<int>("display_mode");
         binary_val_          = get_required_param<int>("binary_val");
         use_geometric_center_= get_required_param<bool>("use_geometric_center");
-        max_processing_fps_  = get_required_param<int>("max_processing_fps");
+        print_period_ms_.store(get_required_param<int>("print_period_ms")); // 多线程访问
 
         // ---------------- Detector 初始化 ----------------
         detector_ = std::make_shared<ArmorDetector>(detect_color_, display_mode_, binary_val_, params);
@@ -176,17 +176,28 @@ private:
         const std::string GREEN = "\033[32m";
         const std::string CYAN  = "\033[96m";
         const std::string RESET = "\033[0m";
+        const std::string PINK  = "\033[38;5;218m";
 
-        int max_fps = max_processing_fps_;
-        std::chrono::microseconds min_period(0);
-        if (max_fps > 0) min_period = std::chrono::microseconds(1'000'000 / max_fps);
+        auto last_print = clock::now();
+
+        // 周期内状态
+        bool had_detection_in_period = false;
+        std::vector<rm_interfaces::msg::ArmorCppInfo> last_detected_armors;
+
+        // FPS 统计
+        int frame_count = 0;
+        auto last_fps_time = clock::now();
+        double current_fps = 0.0;
 
         while (rclcpp::ok() && running_.load()) {
-            auto loop_start = clock::now();
+            frame_count++;  // 每帧计数
 
             cv_bridge::CvImageConstPtr frame_ptr;
             { std::lock_guard<std::mutex> lock(frame_mtx_); frame_ptr = latest_frame_; }
-            if (!frame_ptr) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }
+            if (!frame_ptr) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                continue;
+            }
 
             sensor_msgs::msg::CameraInfo::SharedPtr caminfo_ptr;
             { std::lock_guard<std::mutex> lock(caminfo_mtx_); caminfo_ptr = latest_caminfo_; }
@@ -209,19 +220,17 @@ private:
             armors_msg.header.frame_id = "camera_frame";
 
             if (!detection_error && !armors.empty()) {
+                had_detection_in_period = true;  // 标记周期内有检测
+                last_detected_armors.clear();
+
                 for (const auto& armor : armors) {
                     rm_interfaces::msg::ArmorCppInfo armor_info;
                     armor_info.armor_id = armor.armor_id;
                     auto [dx, dy, dz] = pnp_->processArmorCorners(
                         caminfo_ptr, use_geometric_center_, frame, armor, armor.armor_id);
                     armor_info.dx = dx; armor_info.dy = dy; armor_info.dz = dz;
-                    RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
-                        "发布 %sarmor_id:%s %s%d%s | %sdx:%s %.2f | %sdy:%s %.2f | %sdz:%s %.2f",
-                        CYAN.c_str(), RESET.c_str(),
-                        GREEN.c_str(), armor_info.armor_id, RESET.c_str(),
-                        CYAN.c_str(), RESET.c_str(), armor_info.dx,
-                        CYAN.c_str(), RESET.c_str(), armor_info.dy,
-                        CYAN.c_str(), RESET.c_str(), armor_info.dz);
+
+                    last_detected_armors.push_back(armor_info);
                     armors_msg.armors.push_back(armor_info);
                 }
             }
@@ -234,12 +243,46 @@ private:
             if (!img_armor.empty())
                 publisher_img_armor_->publish(*cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", img_armor).toImageMsg());
 
-            if (min_period.count() > 0) {
-                auto loop_cost = clock::now() - loop_start;
-                if (loop_cost < min_period) std::this_thread::sleep_for(min_period - loop_cost);
+            // -------- 打印节流逻辑 --------
+            int pp_ms = print_period_ms_.load();
+            auto now = clock::now();
+            if (pp_ms <= 0 ||
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - last_print).count() >= pp_ms) {
+
+                // 计算 FPS
+                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_fps_time).count();
+                if (elapsed > 0) {
+                    current_fps = frame_count * 1000.0 / elapsed;
+                }
+                frame_count = 0;
+                last_fps_time = now;
+
+                if (had_detection_in_period) {
+                    for (const auto& armor_info : last_detected_armors) {
+                        RCLCPP_INFO(this->get_logger(),
+                            "发布 %sarmor_id:%s %s%d%s | %sdx:%s %.2f | %sdy:%s %.2f | %sdz:%s %.2f",
+                            CYAN.c_str(), RESET.c_str(),
+                            GREEN.c_str(), armor_info.armor_id, RESET.c_str(),
+                            CYAN.c_str(), RESET.c_str(), armor_info.dx,
+                            CYAN.c_str(), RESET.c_str(), armor_info.dy,
+                            CYAN.c_str(), RESET.c_str(), armor_info.dz);
+                    }
+                } else {
+                    RCLCPP_INFO(this->get_logger(), "%sNo armors detected%s", PINK.c_str(), RESET.c_str());
+                }
+
+                // 打印 FPS (警告级别)
+                RCLCPP_WARN(this->get_logger(), "[FPS_detector] %.1f", current_fps);
+
+                // 重置周期状态
+                had_detection_in_period = false;
+                last_detected_armors.clear();
+                last_print = now;
             }
         }
     }
+
+
 
     // ---------------- 动态参数回调 ----------------
     rcl_interfaces::msg::SetParametersResult
@@ -268,6 +311,7 @@ private:
             } else if (name == "binary_val") { detector_->update_binary_val(param.as_int());
             } else if (name == "detect_color") { detector_->update_detect_color(param.as_int());
             } else if (name == "display_mode") { detector_->update_display_mode(param.as_int());
+            } else if (name == "print_period_ms") { print_period_ms_.store(param.as_int());
             }
         }
 
@@ -304,7 +348,7 @@ private:
     int display_mode_;
     int binary_val_;
     bool use_geometric_center_;
-    int max_processing_fps_;
+    std::atomic<int> print_period_ms_{1000};
 
     // ---- 缓存与线程
     std::mutex frame_mtx_;

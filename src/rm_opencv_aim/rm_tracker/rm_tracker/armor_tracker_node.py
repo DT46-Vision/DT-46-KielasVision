@@ -229,7 +229,7 @@ class ArmorTrackerNode(Node):
             if (now - self._last_fps_time).nanoseconds >= int(self._fps_window_sec * 1e9):
                 secs = (now - self._last_fps_time).nanoseconds / 1e9
                 fps = self._processed_in_window / max(secs, 1e-6)
-                self.get_logger().warn(f"[FPS_track] {fps:.1f} (processed)")
+                self.get_logger().warn(f"[FPS_track] {fps:.1f}")
                 self._processed_in_window = 0
                 self._last_fps_time = now
 

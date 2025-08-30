@@ -23,4 +23,4 @@ rm_detector:
 
     # ---- 其他参数 ----
     use_geometric_center: true
-    max_processing_fps: 0
+    print_period_ms: 1000
