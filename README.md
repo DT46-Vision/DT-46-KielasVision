@@ -1,9 +1,28 @@
 # DT-46-KielasVison
+<br><img src="DT46-vision.svg" alt="DT46_vision" width="200" height="200">
 新的梓喵系统，添加了稳定的 PnP 2D 转 3D 坐标功能和装甲板信息识别，帧率提升，接管了电控的发弹管理并且添加了弹道解算。
-# DT-46-Classifier_training
-装甲板图案分类器训练相关代码
+## **[技术文档](https://www.notion.so/DT46-RM-vision-25ba064aa1788083afacddc497af92c8)**
 
-<img src="DT46-vision.svg" alt="DT46_vision" width="200" height="200">
+### DT-46-KielasVison-Armor_type_definition
+| 编号 | 含义             | 序号 |
+|------|------------------|------|
+| B1   | 蓝方1号 装甲板   | 0    |
+| B2   | 蓝方2号 装甲板   | 1    |
+| B3   | 蓝方3号 装甲板   | 2    |
+| B4   | 蓝方4号 装甲板   | 3    |
+| B5   | 蓝方5号 装甲板   | 4    |
+| B7   | 蓝方哨兵 装甲板   | 5    |
+| R1   | 红方1号 装甲板   | 6    |
+| R2   | 红方2号 装甲板   | 7    |
+| R3   | 红方3号 装甲板   | 8    |
+| R4   | 红方4号 装甲板   | 9    |
+| R5   | 红方5号 装甲板   | 10   |
+| R7   | 红方哨兵 装甲板   | 11   |
+
+---
+
+## DT-46-Classifier_training
+装甲板图案分类器训练相关代码
 
 ## 使用 CIFAR-100 作为负样本
 
