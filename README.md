@@ -1,7 +1,14 @@
 # DT-46-KielasVison
-<br><img src="DT46-vision.svg" alt="DT46_vision" width="200" height="200">
 新的梓喵系统，添加了稳定的 PnP 2D 转 3D 坐标功能和装甲板信息识别，帧率提升，接管了电控的发弹管理并且添加了弹道解算。
+<br><img src="DT46-vision.svg" alt="DT46_vision" width="200" height="200">
+
 ## **[技术文档](https://www.notion.so/DT46-RM-vision-25ba064aa1788083afacddc497af92c8)**
+
+**一键看包**
+
+```bash
+python3 deps_finder.py src/
+```
 
 ### DT-46-KielasVison-Armor_type_definition
 | 编号 | 含义             | 序号 |
