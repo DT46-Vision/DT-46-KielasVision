@@ -31,6 +31,15 @@ python3 deps_finder.py src/
 ## DT-46-Classifier_training
 装甲板图案分类器训练相关代码
 
+## 创建 datasets 文件夹
+
+```bash
+mkdir datasets/1/
+mkdir datasets/2/
+mkdir datasets/3/
+mkdir datasets/4negative/
+```
+
 ## 使用 CIFAR-100 作为负样本
 
 下载地址：https://www.cs.toronto.edu/~kriz/cifar.html

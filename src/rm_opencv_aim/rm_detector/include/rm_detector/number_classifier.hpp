@@ -1,4 +1,6 @@
-#pragma once
+#ifndef NUMBER_CLASSIFIER_HPP
+#define NUMBER_CLASSIFIER_HPP
+
 #include <opencv2/core.hpp>
 #include <opencv2/dnn.hpp>
 #include <string>
@@ -30,3 +32,5 @@ private:
     cv::Mat bin_;
     cv::Mat bin_f_;
 };
+
+#endif

@@ -6,11 +6,11 @@ import numpy as np
 # =========================
 class _BaseKF3D:
     """3D Kalman Filter 基类，观测仅为位置 z=[x,y,z]^T。"""
-
-    def __init__(self, dim_x: int, dt: float, meas_std: float):
+    def __init__(self, dim_x: int, dt: float, meas_std: float, kf_a_init_std: float = 3.0):
         self.dim_x = dim_x
         self.dt = float(dt)
         self.meas_std = float(meas_std)
+        self.kf_a_init_std = float(kf_a_init_std)  # 新增：初始加速度标准差
 
         # 状态与协方差
         self.x = np.zeros((dim_x, 1))
@@ -37,6 +37,9 @@ class _BaseKF3D:
     def set_measurement_noise(self, meas_std: float):
         self.meas_std = float(meas_std)
         self.R = np.eye(3) * (self.meas_std ** 2)
+
+    def set_kf_a_init_std(self, kf_a_init_std: float):
+        self.kf_a_init_std = float(kf_a_init_std)
 
     def set_state(self, x: np.ndarray, P: np.ndarray):
         self.x = np.array(x, dtype=float).reshape((self.dim_x, 1))
@@ -96,9 +99,9 @@ class CVKalman3D(_BaseKF3D):
     状态：x=[px,py,pz, vx,vy,vz]^T  (6)
     过程噪声：白噪声加速度 (sigma_acc^2)
     """
-    def __init__(self, dt: float, sigma_acc: float, meas_std: float):
+    def __init__(self, dt: float, sigma_acc: float, meas_std: float, kf_a_init_std: float = 3.0):
         self.sigma_acc = float(sigma_acc)
-        super().__init__(dim_x=6, dt=dt, meas_std=meas_std)
+        super().__init__(dim_x=6, dt=dt, meas_std=meas_std, kf_a_init_std=kf_a_init_std)
         self._rebuild_mats()
 
     def set_sigma_acc(self, sigma_acc: float):
@@ -134,14 +137,22 @@ class CAKalman3D(_BaseKF3D):
     状态：x=[px,py,pz, vx,vy,vz, ax,ay,az]^T  (9)
     过程噪声：白噪声 jerk (sigma_jerk^2)
     """
-    def __init__(self, dt: float, sigma_jerk: float, meas_std: float):
+    def __init__(self, dt: float, sigma_jerk: float, meas_std: float, kf_a_init_std: float = 3.0):
         self.sigma_jerk = float(sigma_jerk)
-        super().__init__(dim_x=9, dt=dt, meas_std=meas_std)
+        super().__init__(dim_x=9, dt=dt, meas_std=meas_std, kf_a_init_std=kf_a_init_std)
         self._rebuild_mats()
 
     def set_sigma_jerk(self, sigma_jerk: float):
         self.sigma_jerk = float(sigma_jerk)
         self._rebuild_mats()
+
+    def init_from_measurement(self, z: np.ndarray, p0: float = 10.0):
+        """用位置观测初始化状态（速度/加速度置0，位置协方差 p0，加速度协方差 kf_a_init_std^2）"""
+        z = np.array(z, dtype=float).reshape((3, 1))
+        self.x[:] = 0.0
+        self.x[0:3, 0] = z.flatten()
+        self.P = np.eye(self.dim_x) * p0
+        self.P[6:9, 6:9] = np.eye(3) * (self.kf_a_init_std ** 2)  # 加速度部分协方差
 
     def _rebuild_mats(self):
         dt = self.dt
@@ -152,15 +163,12 @@ class CAKalman3D(_BaseKF3D):
         F11 = I3
         F12 = dt * I3
         F13 = 0.5 * (dt ** 2) * I3
-
         F21 = Z3
         F22 = I3
         F23 = dt * I3
-
         F31 = Z3
         F32 = Z3
         F33 = I3
-
         self.F = np.block([
             [F11, F12, F13],
             [F21, F22, F23],
@@ -172,15 +180,12 @@ class CAKalman3D(_BaseKF3D):
         Q11 = (dt ** 5) / 20.0 * q * I3
         Q12 = (dt ** 4) / 8.0  * q * I3
         Q13 = (dt ** 3) / 6.0  * q * I3
-
         Q21 = Q12
         Q22 = (dt ** 3) / 3.0  * q * I3
         Q23 = (dt ** 2) / 2.0  * q * I3
-
         Q31 = Q13
         Q32 = Q23
         Q33 = dt * q * I3
-
         self.Q = np.block([
             [Q11, Q12, Q13],
             [Q21, Q22, Q23],
@@ -219,16 +224,18 @@ class MultiDimKalmanFilter:
         meas_std: float = 0.01,
         mu_init=(0.5, 0.5),
         P_trans=None,
+        kf_a_init_std: float = 3.0,
     ):
         if dim != 3:
             raise ValueError("IMM 版本目前仅支持 dim=3（x,y,z）")
 
         self.dt = float(dt)
         self.dim = 3
+        self.kf_a_init_std = float(kf_a_init_std)
 
         # 两个子滤波器
-        self.cv = CVKalman3D(dt=self.dt, sigma_acc=sigma_acc, meas_std=meas_std)
-        self.ca = CAKalman3D(dt=self.dt, sigma_jerk=sigma_jerk, meas_std=meas_std)
+        self.cv = CVKalman3D(dt=self.dt, sigma_acc=sigma_acc, meas_std=meas_std, kf_a_init_std=kf_a_init_std)
+        self.ca = CAKalman3D(dt=self.dt, sigma_jerk=sigma_jerk, meas_std=meas_std, kf_a_init_std=kf_a_init_std)
 
         # 模型概率
         mu_init = np.array(mu_init, dtype=float).flatten()
@@ -255,6 +262,10 @@ class MultiDimKalmanFilter:
         self.dt = float(dt)
         self.cv.set_dt(self.dt)
         self.ca.set_dt(self.dt)
+
+    def set_kf_a_init_std(self, kf_a_init_std: float):
+        self.kf_a_init_std = float(kf_a_init_std)
+        self.ca.set_kf_a_init_std(kf_a_init_std)
 
     def predict(self):
         """
@@ -382,15 +393,15 @@ class MultiDimKalmanFilter:
         return self._x_out.flatten(), self._v_out.flatten()
 
     def reset(self):
-        self.cv = CVKalman3D(dt=self.dt, sigma_acc=self.cv.sigma_acc, meas_std=self.cv.meas_std)
-        self.ca = CAKalman3D(dt=self.dt, sigma_jerk=self.ca.sigma_jerk, meas_std=self.ca.meas_std)
+        self.cv = CVKalman3D(dt=self.dt, sigma_acc=self.cv.sigma_acc, meas_std=self.cv.meas_std, kf_a_init_std=self.kf_a_init_std)
+        self.ca = CAKalman3D(dt=self.dt, sigma_jerk=self.ca.sigma_jerk, meas_std=self.ca.meas_std, kf_a_init_std=self.kf_a_init_std)
         self.mu = self._normalize_probs(self.mu)
         self._x_out = np.zeros((3, 1))
         self._v_out = np.zeros((3, 1))
         self._initialized = False
 
     # ---------- 调参接口 ----------
-    def set_params(self, sigma_acc=None, sigma_jerk=None, meas_std=None, mu_init=None, P_trans=None):
+    def set_params(self, sigma_acc=None, sigma_jerk=None, meas_std=None, mu_init=None, P_trans=None, kf_a_init_std=None):
         """一次性设置若干参数；未传的保持不变。"""
         if sigma_acc is not None:
             self.cv.set_sigma_acc(float(sigma_acc))
@@ -403,6 +414,8 @@ class MultiDimKalmanFilter:
             self.set_model_probabilities(mu_init)
         if P_trans is not None:
             self.set_transition_matrix(P_trans)
+        if kf_a_init_std is not None:
+            self.set_kf_a_init_std(kf_a_init_std)
 
     def set_transition_matrix(self, P):
         P = np.array(P, dtype=float).reshape((2, 2))

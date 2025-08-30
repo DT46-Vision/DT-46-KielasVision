@@ -175,8 +175,8 @@ private:
 
         const std::string GREEN = "\033[32m";
         const std::string CYAN  = "\033[96m";
-        const std::string RESET = "\033[0m";
         const std::string PINK  = "\033[38;5;218m";
+        const std::string RESET = "\033[0m";
 
         auto last_print = clock::now();
 

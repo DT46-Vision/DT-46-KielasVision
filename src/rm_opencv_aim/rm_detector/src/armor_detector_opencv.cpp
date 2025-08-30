@@ -288,6 +288,34 @@ std::vector<Armor> ArmorDetector::is_armor(const std::vector<Light>& lights) {
     return armors;
 }
 
+cv::Mat ArmorDetector::draw_rect(cv::Mat img_draw) {
+    // 获取图像尺寸
+    int img_height = img_draw.rows;
+    int img_width = img_draw.cols;
+
+    // 计算矩形高度（图像高度的10%）
+    int rect_height = img_height * 0.1;
+
+    // 根据高宽比计算矩形宽度
+    float h_w_ratio = params.light_h_w_ratio;
+    int rect_width = static_cast<int>(rect_height / h_w_ratio);
+
+    // 确保矩形宽度不超过图像宽度，留10像素边距
+    rect_width = std::min(rect_width, img_width - 10);
+
+    // 设置矩形顶部距离图像顶部10像素的偏移量
+    int top_offset = 10;
+
+    // 定义矩形位置（居中）
+    cv::Point top_left((img_width - rect_width) / 2, top_offset);
+    cv::Point bottom_right((img_width + rect_width) / 2, top_offset + rect_height);
+
+    // 绘制绿色矩形（BGR格式，绿色(0, 255, 0)，线宽2）
+    cv::rectangle(img_draw, top_left, bottom_right, cv::Scalar(0, 255, 0), 2);
+
+    return img_draw;
+}
+
 cv::Mat ArmorDetector::draw_lights(cv::Mat img_draw) {
     for (const auto& light : lights) {
         if (light.color == 0) {
@@ -303,39 +331,64 @@ cv::Mat ArmorDetector::draw_lights(cv::Mat img_draw) {
 
 cv::Mat ArmorDetector::draw_armors(cv::Mat img_draw) {
     for (const auto& armor : armors) {
+        cv::Scalar bgColor;
         // 绘制交叉线
         if (armor.color == 0) {
             cv::line(img_draw, armor.light1_up, armor.light2_down, cv::Scalar(128, 0, 128), 1);
             cv::line(img_draw, armor.light2_up, armor.light1_down, cv::Scalar(128, 0, 128), 1);
+            bgColor = cv::Scalar(255, 255, 0); // 背景
         } else if (armor.color == 1) {
             cv::line(img_draw, armor.light1_up, armor.light2_down, cv::Scalar(255, 255, 0), 1);
             cv::line(img_draw, armor.light2_up, armor.light1_down, cv::Scalar(255, 255, 0), 1);
+            bgColor = cv::Scalar(128, 0, 128); // 背景
         }
 
         // 设置文本参数
         int fontFace = cv::FONT_HERSHEY_SIMPLEX;
         double fontScale = 0.5;
-        int thickness = 1;
-        cv::Scalar textColor(255, 0, 255); // 粉色 BGR
+        int thickness = 2;
+        cv::Scalar textColor(193, 182, 255); // 粉色 BGR，接近 \033[38;5;218m
+        int lineHeight = 15;                 // 每行间距
+        int padding = 2;                     // 背景框内边距
 
-        // 文本位置
-        cv::Point textOrg = armor.light1_up; 
-        int lineHeight = 15; // 每行间距，可以根据需要调整
+        // 文本内容
+        std::vector<std::string> texts = {
+            std::to_string(armor.armor_id),
+            std::to_string(armor.res.class_id),
+            std::to_string(armor.res.confidence)
+        };
+
+        // 计算文本区域（整体高度和最大宽度）
+        int maxWidth = 0;
+        int totalHeight = lineHeight * texts.size();
+        for (const auto& text : texts) {
+            cv::Size textSize = cv::getTextSize(text, fontFace, fontScale, thickness, nullptr);
+            maxWidth = std::max(maxWidth, textSize.width);
+        }
+
+        // 文本起始位置（light1_down 上方）
+        cv::Point textOrg = armor.light1_down;
+        textOrg.y -= totalHeight + padding; // 上移到 light1_down 上方
+
+        // 绘制背景框
+        cv::Point bgTopLeft(textOrg.x - padding, textOrg.y - padding);
+        cv::Point bgBottomRight(textOrg.x + maxWidth + padding, textOrg.y + totalHeight + padding);
+        cv::rectangle(img_draw, bgTopLeft, bgBottomRight, bgColor, cv::FILLED);
 
         // 绘制三行文本
-        cv::putText(img_draw, std::to_string(armor.armor_id), textOrg, fontFace, fontScale, textColor, thickness);
-        cv::putText(img_draw, std::to_string(armor.res.class_id), cv::Point(textOrg.x, textOrg.y + lineHeight),
-                    fontFace, fontScale, textColor, thickness);
-        cv::putText(img_draw, std::to_string(armor.res.confidence), cv::Point(textOrg.x, textOrg.y + 2 * lineHeight),
-                    fontFace, fontScale, textColor, thickness);
+        for (size_t i = 0; i < texts.size(); ++i) {
+            cv::Point linePos(textOrg.x, textOrg.y + lineHeight * (i + 1));
+            cv::putText(img_draw, texts[i], linePos, fontFace, fontScale, textColor, thickness);
+        }
     }
     return img_draw;
 }
 
 cv::Mat ArmorDetector::draw_img() {
     cv::Mat img_draw = img.clone();
-    img_draw = draw_armors(img_draw);
-    img_drawn = draw_lights(img_draw);
+    img_draw = draw_rect(img_draw);
+    img_draw = draw_lights(img_draw);
+    img_drawn = draw_armors(img_draw);
     return img_drawn;
 }
 

@@ -31,7 +31,6 @@ class Tracker:
     过程：选目标 -> IMM(KF) 融合(位姿+速度) -> 相机->枪管 -> 弹道解算 -> 射击判定
     输出：(shoot_flag, yaw_sent, pitch_sent, msg_color)
     """
-
     def __init__(self, logger=None):
         self.logger = logger
         self.color = ColorPrint()
@@ -63,6 +62,7 @@ class Tracker:
         self.kf_trans_01 = 0.05
         self.kf_trans_10 = 0.05
         self.kf_trans_11 = 0.95
+        self.kf_a_init_std = 3.0  # 新增：初始加速度标准差
 
         # KF
         self.use_kf = True
@@ -81,6 +81,7 @@ class Tracker:
                 [self.kf_trans_00, self.kf_trans_01],
                 [self.kf_trans_10, self.kf_trans_11],
             ],
+            kf_a_init_std=self.kf_a_init_std,  # 传递 kf_a_init_std
         )
 
         self.tracking_armor = []
@@ -108,6 +109,7 @@ class Tracker:
                 [self.kf_trans_00, self.kf_trans_01],
                 [self.kf_trans_10, self.kf_trans_11],
             ],
+            kf_a_init_std=self.kf_a_init_std,  # 传递 kf_a_init_std
         )
 
     # -------------------- KF 接口 --------------------
@@ -115,7 +117,7 @@ class Tracker:
         self.kf.set_dt(dt)
 
     def kf_predict(self):
-        # 返回下一步位置 (x,y,z)
+        """返回下一步位置 (x,y,z)"""
         return self.kf.predict()
 
     def kf_update(self, x: float, y: float, z: float):
@@ -227,7 +229,7 @@ class Tracker:
         else:
             msg_color = "追踪未知颜色装甲板"
 
-        return float(x), float(y), float(z), msg_color
+        return float(x), float(y), float(z), msg_color  # 修复：返回 4 个值
 
     # -------------------- 相机 xyz → 枪管 yaw/pitch（几何） --------------------
     def tf_to_gun_angles_from_cam_xyz(self, x_cam_m: float, y_cam_m: float, z_cam_m: float):

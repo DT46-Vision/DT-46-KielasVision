@@ -109,13 +109,14 @@ public:
     NumberClassifier::Result get_armor_result(const Light& light1, const Light& light2);
     NumberClassifier::Result is_close(const Light& light1, const Light& light2);
     std::vector<Armor> is_armor(const std::vector<Light>& lights);
+    cv::Mat draw_rect(cv::Mat img_draw);
     cv::Mat draw_lights(cv::Mat img_draw);
     cv::Mat draw_armors(cv::Mat img_draw);
     cv::Mat draw_img();
     std::tuple<cv::Mat, cv::Mat, cv::Mat> display();
     std::vector<Armor> detect_armors(const cv::Mat& img_input);
     
-    std::shared_ptr<NumberClassifier> classifier_; // 新增
+    std::shared_ptr<NumberClassifier> classifier_; 
 };
 
 #endif // ARMOR_DETECTOR_OPENCV_HPP

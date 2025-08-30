@@ -53,7 +53,7 @@ class ArmorTrackerNode(Node):
         self.declare_parameter('frame_add',        60)
         self.declare_parameter('tracking_color',   0)     # 0:红, 1:蓝, 10:不追
         self.declare_parameter('follow_decision',  0)
-        self.declare_parameter('track_deep_tol',   10)  # mm
+        self.declare_parameter('track_deep_tol',   10.0)  # mm
         self.declare_parameter('shoot_yaw_max',    1.5)   # deg
         self.declare_parameter('shoot_pitch_max',  1.0)   # deg
 
@@ -75,7 +75,7 @@ class ArmorTrackerNode(Node):
         self.declare_parameter('kf_trans_01',      0.1)
         self.declare_parameter('kf_trans_10',      0.1)
         self.declare_parameter('kf_trans_11',      0.9)
-        self.declare_parameter('kf_a_init_std',    3.0)
+        self.declare_parameter('kf_a_init_std',    3.0)   # 新增：初始加速度标准差
 
         # ---------- 弹道参数 ----------
         self.declare_parameter('use_ballistics', True)
@@ -138,7 +138,7 @@ class ArmorTrackerNode(Node):
         t.kf_trans_01    = float(gp('kf_trans_01').value)
         t.kf_trans_10    = float(gp('kf_trans_10').value)
         t.kf_trans_11    = float(gp('kf_trans_11').value)
-        t.kf_a_init_std  = float(gp('kf_a_init_std').value)
+        t.kf_a_init_std  = float(gp('kf_a_init_std').value)  # 新增：同步 kf_a_init_std
 
         # 弹道参数
         t.use_ballistics   = bool(gp('use_ballistics').value)
@@ -163,6 +163,9 @@ class ArmorTrackerNode(Node):
                     self.log._default_ms = int(val)
                 elif name == 'fps_window_sec':
                     self._fps_window_sec = float(val)
+                elif name == 'kf_a_init_std':  # 新增：处理 kf_a_init_std
+                    self.tracker.kf_a_init_std = float(val)
+                    need_rebuild = True
                 elif hasattr(self.tracker, name):
                     setattr(self.tracker, name, val)
                     if name.startswith('kf_'):

@@ -9,7 +9,7 @@ rm_tracker:
     frame_add: 60             # 目标丢失前保留的帧数
     tracking_color: 0         # 跟踪颜色: 0=红, 1=蓝, 10=不追踪
     follow_decision: 0        # 是否跟随决策模块 (0=否, 1=是)
-    track_deep_tol: 10      # 追踪深度容差 (mm)
+    track_deep_tol: 10.0      # 追踪深度容差 (mm)
     shoot_yaw_max: 1.5        # 最大允许 yaw 角度 (deg)
     shoot_pitch_max: 1.0      # 最大允许 pitch 角度 (deg)
 
