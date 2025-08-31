@@ -40,11 +40,13 @@ namespace DT46_VISION {
         cv::Point2f light2_up;
         cv::Point2f light2_down;
 
+        float height_multiplier;
+
         int color;
         int armor_id;
         NumberClassifier::Result res;
 
-        Armor(const Light& light1, const Light& light2, NumberClassifier::Result res);
+        Armor(float height_multiplier, const Light& light1, const Light& light2, NumberClassifier::Result res);
         int get_id() const; // 修改为接受 type 参数
     };
 
@@ -109,7 +111,7 @@ namespace DT46_VISION {
         std::vector<Light> find_lights(const cv::Mat& img_binary_input);
         std::pair<cv::Point2f, cv::Point2f> stretch_point(const cv::Point2f& up, const cv::Point2f& down, float ratio = 0.45f) const;
         NumberClassifier::Result get_armor_result(const Light& light1, const Light& light2);
-        NumberClassifier::Result is_close(const Light& light1, const Light& light2);
+        std::pair<NumberClassifier::Result, float> is_close(const Light& light1, const Light& light2);
         std::vector<Armor> is_armor(const std::vector<Light>& lights);
         cv::Mat draw_rect(cv::Mat img_draw);
         cv::Mat draw_lights(cv::Mat img_draw);

@@ -36,8 +36,8 @@ namespace DT46_VISION{
         height = calculate_distance(up, down);
     }
 
-    Armor::Armor(const Light& light1, const Light& light2, NumberClassifier::Result res)
-        : light1_up(light1.up), light1_down(light1.down),
+    Armor::Armor(float height_multiplier, const Light& light1, const Light& light2, NumberClassifier::Result res)
+        : height_multiplier(height_multiplier), light1_up(light1.up), light1_down(light1.down),
         light2_up(light2.up), light2_down(light2.down),
         res(res) {
 
@@ -238,15 +238,28 @@ namespace DT46_VISION{
         return res; // 只返回结果（id + 置信度）
     }
 
-    NumberClassifier::Result ArmorDetector::is_close(const Light& light1, const Light& light2) {
+    std::pair<NumberClassifier::Result, float> ArmorDetector::is_close(const Light& light1, const Light& light2) {
         NumberClassifier::Result res;
         // 计算公共变量
-        float height = std::max(light1.height, light2.height);
-        float height_rate = height / std::min(light1.height, light2.height);
+        // float height = 
+        float height_max, height_min;
+        if (std::max(light1.height, light2.height) == light1.height){
+            height_max = light1.height;
+            height_min = light2.height;
+        }
+        else{
+            height_max = light2.height;
+            height_min = light1.height;
+        }
+
+        float height_rate = height_max / height_min;
         // 如果高度比例不符合，直接返回
         if (height_rate >= params.height_rate_tol) {
-            return res;
+            return {res, 0.f};
         }
+
+        float height = (height_max + height_min) / 2;
+
         double distance = calculate_distance({static_cast<float>(light1.cx), static_cast<float>(light1.cy)}, {static_cast<float>(light2.cx), static_cast<float>(light2.cy)});
 
         if ((distance > height * params.height_multiplier_min && distance < height * params.height_multiplier_max)
@@ -254,7 +267,7 @@ namespace DT46_VISION{
             ) {
                 res = get_armor_result(light1, light2);
         }
-        return res;
+        return {res, distance / height};
     }
 
     std::vector<Armor> ArmorDetector::is_armor(const std::vector<Light>& lights) {
@@ -277,9 +290,11 @@ namespace DT46_VISION{
             const Light& right = sorted_lights[i + 1];
 
             if (left.color == right.color) {
-                NumberClassifier::Result res = is_close(left, right);
+                NumberClassifier::Result res;
+                float height_multiplier;
+                std::tie(res, height_multiplier) = is_close(left, right);
                 if (res.class_id >= 0 && res.class_id < 3) {
-                    armors_found.push_back(Armor(left, right, res));
+                    armors_found.push_back(Armor(height_multiplier, left, right, res));
                 }
             }
         }
@@ -313,8 +328,29 @@ namespace DT46_VISION{
         // 绘制绿色矩形（BGR格式，绿色(0, 255, 0)，线宽2）
         cv::rectangle(img_draw, top_left, bottom_right, cv::Scalar(0, 255, 0), 2);
 
+        float height_rate_tol = params.height_rate_tol;
+
+        // 竖线高度
+        int line_height = static_cast<int>(rect_height / height_rate_tol);
+
+        // 矩形底部 y 坐标
+        int rect_bottom_y = bottom_right.y;
+
+        // 左边竖线
+        int left_line_x = top_left.x - rect_width;
+        cv::Point left_bottom(left_line_x, rect_bottom_y);
+        cv::Point left_top(left_line_x, rect_bottom_y - line_height);
+        cv::line(img_draw, left_bottom, left_top, cv::Scalar(0, 255, 0), 2);
+
+        // 右边竖线
+        int right_line_x = bottom_right.x + rect_width;
+        cv::Point right_bottom(right_line_x, rect_bottom_y);
+        cv::Point right_top(right_line_x, rect_bottom_y - line_height);
+        cv::line(img_draw, right_bottom, right_top, cv::Scalar(0, 255, 0), 2);
+
         return img_draw;
     }
+
 
     cv::Mat ArmorDetector::draw_lights(cv::Mat img_draw) {
         for (const auto& light : lights) {
@@ -351,11 +387,12 @@ namespace DT46_VISION{
             int lineHeight = 15;                 // 每行间距
             int padding = 2;                     // 背景框内边距
 
-            // 文本内容
+            // 文本内容（带格式化）
             std::vector<std::string> texts = {
                 std::to_string(armor.armor_id),
+                cv::format("%.2f", armor.height_multiplier),   // ⭐ 新增 height_multiplier
                 std::to_string(armor.res.class_id),
-                std::to_string(armor.res.confidence)
+                cv::format("%.2f", armor.res.confidence)       // ⭐ 格式化 confidence
             };
 
             // 计算文本区域（整体高度和最大宽度）
@@ -375,7 +412,7 @@ namespace DT46_VISION{
             cv::Point bgBottomRight(textOrg.x + maxWidth + padding, textOrg.y + totalHeight + padding);
             cv::rectangle(img_draw, bgTopLeft, bgBottomRight, bgColor, cv::FILLED);
 
-            // 绘制三行文本
+            // 绘制多行文本
             for (size_t i = 0; i < texts.size(); ++i) {
                 cv::Point linePos(textOrg.x, textOrg.y + lineHeight * (i + 1));
                 cv::putText(img_draw, texts[i], linePos, fontFace, fontScale, textColor, thickness);
@@ -383,6 +420,7 @@ namespace DT46_VISION{
         }
         return img_draw;
     }
+
 
     cv::Mat ArmorDetector::draw_img() {
         cv::Mat img_draw = img.clone();
@@ -413,4 +451,4 @@ namespace DT46_VISION{
         return armors;
     }
     
-}
+} // namespace DT46_VISION
