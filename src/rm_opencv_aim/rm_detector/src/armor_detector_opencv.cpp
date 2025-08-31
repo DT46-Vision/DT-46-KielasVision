@@ -29,8 +29,8 @@ namespace DT46_VISION{
     }
 
     // Light 类的构造函数实现
-    Light::Light(const cv::Point2f& up, const cv::Point2f& down, double angle, int color)
-        : up(up), down(down), angle(angle), color(color) {
+    Light::Light(const cv::Point2f& up, const cv::Point2f& down, int color)
+        : up(up), down(down), color(color) {
         cx = static_cast<int>(std::abs(up.x - down.x) / 2 + std::min(up.x, down.x));
         cy = static_cast<int>(std::abs(up.y - down.y) / 2 + std::min(up.y, down.y));
         height = calculate_distance(up, down);
@@ -190,9 +190,9 @@ namespace DT46_VISION{
             int sum_r = cv::sum(roi)[2];
 
             if ((color == 1 || color == 2) && sum_b > sum_r * params.light_blue_ratio) {
-                lights_found.push_back(Light(up, down, rect.angle, 1));
+                lights_found.push_back(Light(up, down, 1));
             } else if ((color == 0 || color == 2) && sum_r > sum_b * params.light_red_ratio) {
-                lights_found.push_back(Light(up, down, rect.angle, 0));
+                lights_found.push_back(Light(up, down, 0));
             }
         }
 

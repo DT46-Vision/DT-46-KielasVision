@@ -26,28 +26,27 @@ namespace DT46_VISION {
         double height;
         cv::Point2f up;
         cv::Point2f down;
-        double angle;
         int color;
 
-        Light(const cv::Point2f& up, const cv::Point2f& down, double angle, int color);
+        Light(const cv::Point2f& up, const cv::Point2f& down, int color);
     };
 
     class Armor {
     public:
+
+        float height_multiplier;
 
         cv::Point2f light1_up;
         cv::Point2f light1_down;
         cv::Point2f light2_up;
         cv::Point2f light2_down;
 
-        float height_multiplier;
-
         int color;
         int armor_id;
         NumberClassifier::Result res;
 
         Armor(float height_multiplier, const Light& light1, const Light& light2, NumberClassifier::Result res);
-        int get_id() const; // 修改为接受 type 参数
+        int get_id() const;
     };
 
     // 定义 Params 结构体
