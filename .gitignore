@@ -89,3 +89,9 @@ armor_bag*/
 
 MindVisionSDK/
 MVS.deb
+
+# ==============================
+# docker img
+# ==========
+
+*.tar
