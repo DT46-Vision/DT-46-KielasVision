@@ -37,7 +37,7 @@ def main():
     reader.open(storage_options, converter_options)
 
     storage_filter = rosbag2_py.StorageFilter(
-        topics=['/detector/armor_img'])
+        topics=['/detector/img_armor'])
     reader.set_filter(storage_filter)
 
     bridge = CvBridge()
