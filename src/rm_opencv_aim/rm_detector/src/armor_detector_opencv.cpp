@@ -241,7 +241,6 @@ namespace DT46_VISION{
     std::pair<NumberClassifier::Result, float> ArmorDetector::is_close(const Light& light1, const Light& light2) {
         NumberClassifier::Result res;
         // 计算公共变量
-        // float height = 
         float height_max, height_min;
         if (std::max(light1.height, light2.height) == light1.height){
             height_max = light1.height;
