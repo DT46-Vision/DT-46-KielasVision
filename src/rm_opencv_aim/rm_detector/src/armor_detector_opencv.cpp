@@ -1,4 +1,5 @@
 #include "rm_detector/armor_detector_opencv.hpp"
+
 namespace DT46_VISION{
     // 计算两个点之间的距离
     double calculate_distance(const cv::Point2f& p1, const cv::Point2f& p2) {
@@ -109,6 +110,10 @@ namespace DT46_VISION{
 
     void ArmorDetector::update_height_multiplier_max(float new_height_multiplier_max) {
         params.height_multiplier_max = new_height_multiplier_max;
+    }
+
+    void ArmorDetector::update_canny_high(int new_canny_high) {
+        params.canny_high = new_canny_high;
     }
 
     void ArmorDetector::update_binary_val(int new_binary_val) {
@@ -230,12 +235,25 @@ namespace DT46_VISION{
         cv::Mat H = cv::getPerspectiveTransform(src_armor_pts, dst_armor_pts);
         cv::Mat roi;
         cv::warpPerspective(img, roi, H, cv::Size(134, int(57 / 0.45f)));
-        img_armor = roi;
-        if (classifier_ && !roi.empty()) {
-            res = classifier_->classify(roi);
-        }
 
-        return res; // 只返回结果（id + 置信度）
+        // --- 预处理：转换到单通道并做 Canny（用你想要的阈值） ---
+        if (!roi.empty() && classifier_) {
+            cv::Mat gray;
+            if (roi.channels() == 3) {
+                cv::cvtColor(roi, gray, cv::COLOR_BGR2GRAY);
+            } else {
+                gray = roi;
+            }
+
+            cv::Mat binary;
+
+            cv::Canny(gray, binary, 0, params.canny_high);
+            img_armor = binary;
+
+            // 把处理好的二值图传给分类器（分类器内部再做尺寸检查 / 最终 resize）
+            res = classifier_->classify(binary);
+        } // 只返回结果（id + 置信度）
+        return res;
     }
 
     std::pair<NumberClassifier::Result, float> ArmorDetector::is_close(const Light& light1, const Light& light2) {

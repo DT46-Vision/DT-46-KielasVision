@@ -3,9 +3,8 @@
 namespace DT46_VISION {
 
     NumberClassifier::NumberClassifier(const std::string& onnx_path,
-                                       cv::Size input_size,
-                                       bool invert_binary)
-        : input_size_(input_size), invert_binary_(invert_binary)
+                                       cv::Size input_size)
+        : input_size_(input_size)
     {
         net_ = cv::dnn::readNetFromONNX(onnx_path);
         if (net_.empty()) {
@@ -36,45 +35,38 @@ namespace DT46_VISION {
         Result out;
         if (armor_img.empty()) return out;
 
-        // --- 灰度 ---
+        // 如果输入是三通道，则把它转成灰度并作为回退（优先支持单通道二值图）
         if (armor_img.channels() == 3) {
             cv::cvtColor(armor_img, gray_, cv::COLOR_BGR2GRAY);
-        } else if (armor_img.size() != input_size_) {
-            cv::resize(armor_img, gray_, input_size_, 0, 0, cv::INTER_AREA);
+            // 作为回退：如果你确实需要，也可以在这里做 Otsu 或 adaptive threshold，
+            // 但既然你希望 detector 做预处理，这里不再做 Canny/OTSU（保持轻量）。
+            cv::threshold(gray_, bin_, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
         } else {
-            gray_ = armor_img;
+            // 假定 armor_img 已经是二值/边缘图（单通道）
+            bin_ = armor_img;
         }
 
-        // --- Canny 边缘检测（直接用你给的阈值 (0, 100)）---
-        const int low_thresh  = 0;
-        const int high_thresh = 100;
-        cv::Canny(gray_, bin_, low_thresh, high_thresh);
-
-        // --- 可选：保留原有的反色语义 ---
-        if (invert_binary_) cv::bitwise_not(bin_, bin_);
-
-        // --- resize（保证输入大小和模型一致） ---
+        // 确保大小和模型输入一致（如果不一致就 resize）
         if (bin_.size() != input_size_) {
             cv::resize(bin_, bin_, input_size_, 0, 0, cv::INTER_AREA);
         }
 
-        // --- 直接转 blob (归一化) ---
+        // 转 blob 并归一化（单通道也可以直接 blobFromImage）
         cv::Mat blob = cv::dnn::blobFromImage(bin_, 1.0 / 255.0, input_size_, cv::Scalar(), false, false, CV_32F);
 
-        // --- 前向推理 ---
+        // 前向推理
         net_.setInput(blob);
         cv::Mat logits = net_.forward(); // shape: 1xC
 
-        // --- 取最大值/类别 ---
+        // 取最大值/类别
         cv::Point classIdPoint;
         double confidence;
         cv::minMaxLoc(logits, nullptr, &confidence, nullptr, &classIdPoint);
 
         out.class_id = classIdPoint.x;
-        out.confidence = static_cast<float>(confidence);  // 注意：这是未归一化的 logit 值
+        out.confidence = static_cast<float>(confidence);  // 仍然是 logit / 未 softmax 的值
 
         return out;
     }
-
 
 } // namespace DT46_VISION

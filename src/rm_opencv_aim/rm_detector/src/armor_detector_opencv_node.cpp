@@ -33,7 +33,6 @@ namespace DT46_VISION {
             // ---------------- 参数声明 ----------------
             // 先声明所有参数（从 detector_params.yaml 复制默认值）
             this->declare_parameter<std::string>("cls_model_file", "mlp.onnx");
-            this->declare_parameter<bool>("cls_invert_binary", false);
 
             // 灯条过滤参数
             this->declare_parameter<int>("light_area_min", 5);
@@ -47,6 +46,7 @@ namespace DT46_VISION {
             this->declare_parameter<double>("height_rate_tol", 1.3);
             this->declare_parameter<double>("height_multiplier_min", 1.8);
             this->declare_parameter<double>("height_multiplier_max", 3.0);
+            this->declare_parameter<int>("canny_high", 100);
 
             // 图像处理参数
             this->declare_parameter<int>("binary_val", 120);
@@ -59,7 +59,6 @@ namespace DT46_VISION {
 
             // ---------------- 参数读取 ----------------
             std::string cls_model_file   = get_required_param<std::string>("cls_model_file");
-            cls_invert_binary_           = get_required_param<bool>("cls_invert_binary");
 
             // 拼接模型路径
             std::string pkg_share = ament_index_cpp::get_package_share_directory("rm_detector");
@@ -77,7 +76,8 @@ namespace DT46_VISION {
                 get_required_param<double>("light_blue_ratio"),
                 get_required_param<double>("height_rate_tol"),
                 get_required_param<double>("height_multiplier_min"),
-                get_required_param<double>("height_multiplier_max")
+                get_required_param<double>("height_multiplier_max"),
+                get_required_param<int>("canny_high")
             };
 
             detect_color_        = get_required_param<int>("detect_color");
@@ -90,7 +90,7 @@ namespace DT46_VISION {
             detector_ = std::make_shared<ArmorDetector>(detect_color_, display_mode_, binary_val_, params);
             pnp_      = std::make_shared<PNP>(this->get_logger());
 
-            reload_classifier_impl_(cls_model_path_, cls_invert_binary_);
+            reload_classifier_impl_(cls_model_path_);
 
             // 动态参数回调
             callback_handle_ = this->add_on_set_parameters_callback(
@@ -133,7 +133,7 @@ namespace DT46_VISION {
         }
 
         // ---------------- 分类器加载 ----------------
-        void reload_classifier_impl_(const std::string& onnx_path, bool invert) {
+        void reload_classifier_impl_(const std::string& onnx_path) {
             if (onnx_path.empty()) {
                 classifier_.reset();
                 if (detector_) detector_->set_classifier(nullptr);
@@ -141,10 +141,10 @@ namespace DT46_VISION {
                 return;
             }
             try {
-                classifier_ = std::make_shared<NumberClassifier>(onnx_path, cv::Size(20, 28), invert);
+                classifier_ = std::make_shared<NumberClassifier>(onnx_path, cv::Size(20, 28));
                 if (detector_) detector_->set_classifier(classifier_);
-                RCLCPP_INFO(this->get_logger(), "[Classifier] Loaded ONNX: %s | invert=%s",
-                            onnx_path.c_str(), invert ? "true" : "false");
+                RCLCPP_INFO(this->get_logger(), "[Classifier] Loaded ONNX: %s",
+                            onnx_path.c_str());
             } catch (const std::exception& e) {
                 classifier_.reset();
                 if (detector_) detector_->set_classifier(nullptr);
@@ -293,14 +293,11 @@ namespace DT46_VISION {
             result.successful = true; result.reason = "success";
 
             std::optional<std::string> new_model_file;
-            std::optional<bool>        new_invert;
 
             for (const auto& param : parameters) {
                 const auto& name = param.get_name();
                 if (name == "cls_model_file") {
                     new_model_file = param.as_string();
-                } else if (name == "cls_invert_binary") {
-                    new_invert = param.as_bool();
                 } else if (name == "light_area_min") { detector_->update_light_area_min(param.as_int());
                 } else if (name == "light_h_w_ratio") { detector_->update_light_h_w_ratio(param.as_double());
                 } else if (name == "light_angle_min") { detector_->update_light_angle_min(param.as_int());
@@ -310,6 +307,7 @@ namespace DT46_VISION {
                 } else if (name == "height_rate_tol") { detector_->update_height_rate_tol(param.as_double());
                 } else if (name == "height_multiplier_min") { detector_->update_height_multiplier_min(param.as_double());
                 } else if (name == "height_multiplier_max") { detector_->update_height_multiplier_max(param.as_double());
+                } else if (name == "canny_high") { detector_->update_canny_high(param.as_int());
                 } else if (name == "binary_val") { detector_->update_binary_val(param.as_int());
                 } else if (name == "detect_color") { detector_->update_detect_color(param.as_int());
                 } else if (name == "display_mode") { detector_->update_display_mode(param.as_int());
@@ -317,13 +315,13 @@ namespace DT46_VISION {
                 }
             }
 
-            if (new_model_file || new_invert) {
+            if (new_model_file) {
                 std::string pkg_share = ament_index_cpp::get_package_share_directory("rm_detector");
                 std::string new_path = cls_model_path_;
                 if (new_model_file) {
                     new_path = (std::filesystem::path(pkg_share) / "model" / *new_model_file).string();
                 }
-                reload_classifier_impl_(new_path, new_invert.value_or(cls_invert_binary_));
+                reload_classifier_impl_(new_path);
             }
             return result;
         }
@@ -345,7 +343,6 @@ namespace DT46_VISION {
 
         // ---- 参数缓存
         std::string cls_model_path_;
-        bool cls_invert_binary_;
         int detect_color_;
         int display_mode_;
         int binary_val_;

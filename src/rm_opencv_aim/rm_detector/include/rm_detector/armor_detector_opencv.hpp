@@ -60,6 +60,7 @@ namespace DT46_VISION {
         double height_rate_tol;
         double height_multiplier_min;
         double height_multiplier_max;
+        int canny_high;
     };
 
     class ArmorDetector {
@@ -101,6 +102,7 @@ namespace DT46_VISION {
         void update_height_rate_tol(float new_height_rate_tol);
         void update_height_multiplier_min(float new_height_multiplier_min);
         void update_height_multiplier_max(float new_height_multiplier_max);
+        void update_canny_high(int new_canny_high);
 
         void update_binary_val(int new_binary_val);
         void update_detect_color(int new_color);
