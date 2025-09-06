@@ -95,3 +95,5 @@ MVS.deb
 # ==========
 
 *.tar
+
+cifar-100-python.tar.*

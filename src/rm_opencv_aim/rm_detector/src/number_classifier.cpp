@@ -45,11 +45,15 @@ namespace DT46_VISION {
             gray_ = armor_img;
         }
 
-        // --- Otsu 二值化 ---
-        cv::threshold(gray_, bin_, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+        // --- Canny 边缘检测（直接用你给的阈值 (0, 100)）---
+        const int low_thresh  = 0;
+        const int high_thresh = 100;
+        cv::Canny(gray_, bin_, low_thresh, high_thresh);
+
+        // --- 可选：保留原有的反色语义 ---
         if (invert_binary_) cv::bitwise_not(bin_, bin_);
 
-        // --- resize (保证输入大小和模型一致) ---
+        // --- resize（保证输入大小和模型一致） ---
         if (bin_.size() != input_size_) {
             cv::resize(bin_, bin_, input_size_, 0, 0, cv::INTER_AREA);
         }
@@ -67,9 +71,10 @@ namespace DT46_VISION {
         cv::minMaxLoc(logits, nullptr, &confidence, nullptr, &classIdPoint);
 
         out.class_id = classIdPoint.x;
-        out.confidence = static_cast<float>(confidence);  // 注意：这是未归一化概率, 不是 softmax ！！
+        out.confidence = static_cast<float>(confidence);  // 注意：这是未归一化的 logit 值
 
         return out;
     }
+
 
 } // namespace DT46_VISION

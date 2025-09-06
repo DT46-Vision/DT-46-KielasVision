@@ -5,7 +5,6 @@ RoboMaster 装甲板图案分类器训练相关代码
 
 该项目为 [rm_vision](https://github.com/chenjunnn/rm_vision) 的子模块
 
-若有帮助请Star这个项目，感谢~
 
 ## 使用 CIFAR-100 作为负样本
 
