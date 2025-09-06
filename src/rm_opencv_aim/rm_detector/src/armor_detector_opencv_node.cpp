@@ -46,7 +46,7 @@ namespace DT46_VISION {
             this->declare_parameter<double>("height_rate_tol", 1.3);
             this->declare_parameter<double>("height_multiplier_min", 1.8);
             this->declare_parameter<double>("height_multiplier_max", 3.0);
-            this->declare_parameter<int>("canny_high", 100);
+            this->declare_parameter<int>("bin_offset", -10);
 
             // 图像处理参数
             this->declare_parameter<int>("binary_val", 120);
@@ -77,7 +77,7 @@ namespace DT46_VISION {
                 get_required_param<double>("height_rate_tol"),
                 get_required_param<double>("height_multiplier_min"),
                 get_required_param<double>("height_multiplier_max"),
-                get_required_param<int>("canny_high")
+                get_required_param<int>("bin_offset")
             };
 
             detect_color_        = get_required_param<int>("detect_color");
@@ -107,6 +107,7 @@ namespace DT46_VISION {
             publisher_result_img_ = this->create_publisher<sensor_msgs::msg::Image>("/detector/result", 10);
             publisher_bin_img_    = this->create_publisher<sensor_msgs::msg::Image>("/detector/bin_img", 10);
             publisher_img_armor_  = this->create_publisher<sensor_msgs::msg::Image>("/detector/img_armor", 10);
+            publisher_img_armor_processed_  = this->create_publisher<sensor_msgs::msg::Image>("/detector/img_armor_processed", 10);
 
             // 工作线程
             running_.store(true);
@@ -206,12 +207,12 @@ namespace DT46_VISION {
 
                 cv::Mat frame = frame_ptr->image;
 
-                cv::Mat bin, result, img_armor;
+                cv::Mat bin, result, img_armor, img_armor_processed;
                 std::vector<Armor> armors;
                 bool detection_error = false;
                 try {
                     armors = detector_->detect_armors(frame);
-                    std::tie(bin, result, img_armor) = detector_->display();
+                    std::tie(bin, result, img_armor, img_armor_processed) = detector_->display();
                 } catch (const std::exception& e) {
                     RCLCPP_ERROR(this->get_logger(), "Detection error: %s", e.what());
                     detection_error = true;
@@ -244,7 +245,8 @@ namespace DT46_VISION {
                     publisher_result_img_->publish(*cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", result).toImageMsg());
                 if (!img_armor.empty())
                     publisher_img_armor_->publish(*cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", img_armor).toImageMsg());
-
+                if (!img_armor_processed.empty())
+                    publisher_img_armor_processed_->publish(*cv_bridge::CvImage(std_msgs::msg::Header(), "mono8", img_armor_processed).toImageMsg());
                 // -------- 打印节流逻辑 --------
                 int pp_ms = print_period_ms_.load();
                 auto now = clock::now();
@@ -307,7 +309,7 @@ namespace DT46_VISION {
                 } else if (name == "height_rate_tol") { detector_->update_height_rate_tol(param.as_double());
                 } else if (name == "height_multiplier_min") { detector_->update_height_multiplier_min(param.as_double());
                 } else if (name == "height_multiplier_max") { detector_->update_height_multiplier_max(param.as_double());
-                } else if (name == "canny_high") { detector_->update_canny_high(param.as_int());
+                } else if (name == "bin_offset") { detector_->update_bin_offset(param.as_int());
                 } else if (name == "binary_val") { detector_->update_binary_val(param.as_int());
                 } else if (name == "detect_color") { detector_->update_detect_color(param.as_int());
                 } else if (name == "display_mode") { detector_->update_display_mode(param.as_int());
@@ -333,6 +335,7 @@ namespace DT46_VISION {
         rclcpp::Publisher<rm_interfaces::msg::ArmorsCppMsg>::SharedPtr  publisher_armors_;
         rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr           publisher_result_img_;
         rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr           publisher_img_armor_;
+        rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr           publisher_img_armor_processed_;
         rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr           publisher_bin_img_;
         rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr callback_handle_;
 

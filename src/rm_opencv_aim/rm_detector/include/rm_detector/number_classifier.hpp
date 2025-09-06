@@ -35,8 +35,6 @@ namespace DT46_VISION {  // 添加命名空间
         bool         invert_binary_;
 
         // --- 内存复用 buffer ---
-        cv::Mat gray_;
-        cv::Mat bin_;
         cv::Mat bin_f_;
     };
 

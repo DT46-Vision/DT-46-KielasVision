@@ -60,7 +60,7 @@ namespace DT46_VISION {
         double height_rate_tol;
         double height_multiplier_min;
         double height_multiplier_max;
-        int canny_high;
+        int bin_offset;
     };
 
     class ArmorDetector {
@@ -68,6 +68,7 @@ namespace DT46_VISION {
         cv::Mat img;
         cv::Mat img_binary;
         cv::Mat img_armor;
+        cv::Mat img_armor_processed;
         cv::Mat img_drawn;
 
         std::vector<Light> lights;
@@ -102,7 +103,7 @@ namespace DT46_VISION {
         void update_height_rate_tol(float new_height_rate_tol);
         void update_height_multiplier_min(float new_height_multiplier_min);
         void update_height_multiplier_max(float new_height_multiplier_max);
-        void update_canny_high(int new_canny_high);
+        void update_bin_offset(int new_bin_offset);
 
         void update_binary_val(int new_binary_val);
         void update_detect_color(int new_color);
@@ -118,7 +119,7 @@ namespace DT46_VISION {
         cv::Mat draw_lights(cv::Mat img_draw);
         cv::Mat draw_armors(cv::Mat img_draw);
         cv::Mat draw_img();
-        std::tuple<cv::Mat, cv::Mat, cv::Mat> display();
+        std::tuple<cv::Mat, cv::Mat, cv::Mat, cv::Mat> display();
         std::vector<Armor> detect_armors(const cv::Mat& img_input);
         
         std::shared_ptr<NumberClassifier> classifier_; 
